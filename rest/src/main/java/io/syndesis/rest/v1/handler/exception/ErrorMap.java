@@ -16,103 +16,83 @@
 package io.syndesis.rest.v1.handler.exception;
 
 import java.io.IOException;
-import java.io.StringReader;
+import java.util.Optional;
 
-import javax.xml.bind.JAXBContext;
-import javax.xml.bind.JAXBException;
-import javax.xml.bind.Unmarshaller;
-import javax.xml.bind.annotation.XmlRootElement;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.xml.XmlMapper;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
-
-@XmlRootElement (name="hash")
-public class ErrorMap {
+public final class ErrorMap {
 
     private static final Logger LOG = LoggerFactory.getLogger(ErrorMap.class);
-    private String error;
-    private String request;
 
-    public ErrorMap() {
-        super();
+    private ErrorMap() {
+        // utility class
     }
 
-    public ErrorMap(String error) {
-        super();
-        this.error = error;
-    }
     /**
      * Performs best effort to parse the rawMsg. If all parsers fail it returns the raw message.
      *
      * @param rawMsg
-     * @return ErrorMap containing the underlying error message.
+     * @return the underlying error message.
      */
-    public static ErrorMap from(String rawMsg) {
-        ErrorMap errorMap = new ErrorMap(rawMsg);
-        if ('<' == rawMsg.charAt(0)) {
-            errorMap = parseXML(rawMsg);
+    public static String from(String rawMsg) {
+        if (rawMsg.matches("^\\s*\\<.*")) {
+            return parseWith(rawMsg, new XmlMapper());
         }
-        if ('{' == rawMsg.charAt(0)) {
-            errorMap = parseJSON(rawMsg);
+        if (rawMsg.matches("^\\s*\\{.*")) {
+            return parseWith(rawMsg, new ObjectMapper());
         }
-        return errorMap;
+        return rawMsg;
     }
 
-    public String getError() {
-        return error;
-    }
-    public void setError(String error) {
-        this.error = error;
-    }
-    public String getRequest() {
-        return request;
-    }
-    public void setRequest(String request) {
-        this.request = request;
-    }
     /**
      * Tries to parse the rawMsg assuming it is JSON formatted.
      * defaults to the rawMsg if parsing fails.
      * @param rawMsg
      * @return ErrorMap
      */
-    private static ErrorMap parseJSON(String rawMsg) {
-        ErrorMap errorMap = new ErrorMap();
+    /* default */ static String parseWith(String rawMsg, ObjectMapper mapper) {
         try {
-            ObjectMapper mapper = new ObjectMapper();
-            JsonNode jsonNode = mapper.readTree(rawMsg);
-            JsonNode errors = jsonNode.get("errors");
-            if (errors.isArray() && errors.iterator().hasNext()) {
-                errorMap.setError(errors.iterator().next().get("message").asText());
-            }
+            final JsonNode jsonNode = mapper.readTree(rawMsg);
+            final Optional<String> error = determineError(jsonNode);
+            return error.orElse(rawMsg);
         } catch (IOException e) {
-            if (LOG.isDebugEnabled()) {
-                LOG.debug("Swallowing " + e.getMessage());
+            LOG.debug("Swallowing {}", e.getMessage(), e);
+        }
+        return rawMsg;
+    }
+
+    /* default */ static Optional<String> determineError(final JsonNode node) {
+        return Optional.of(tryLookingUp(node, "errors", "message")
+            .orElseGet(() -> tryLookingUp(node, "error", "message")
+                .orElseGet(() -> tryLookingUp(node, "error")
+                    .orElseGet(() -> tryLookingUp(node, "message")
+                        .orElse(null)))));
+    }
+
+    /* default */ static Optional<String> tryLookingUp(final JsonNode node, final String... pathElements) {
+        JsonNode current = node;
+        for (String pathElement : pathElements) {
+            current = current.get(pathElement);
+
+            if (current != null && current.isArray() && current.iterator().hasNext()) {
+                current = current.iterator().next();
+            }
+
+            if (current == null) {
+                return Optional.empty();
             }
         }
-        return errorMap;
-    }
-    /**
-     * Tries to parse the rawMsg assuming it is XML formatted.
-     * defaults to the rawMsg if parsing fails.
-     * @param rawMsg
-     * @return ErrorMap
-     */
-    private static ErrorMap parseXML(String rawMsg) {
-        ErrorMap errorMap = new ErrorMap();
-        try {
-            JAXBContext jaxbContext = JAXBContext.newInstance(ErrorMap.class);
-            Unmarshaller jaxbUnmarshaller = jaxbContext.createUnmarshaller();
-            errorMap = (ErrorMap) jaxbUnmarshaller.unmarshal(new StringReader(rawMsg));
-        } catch (JAXBException e) {
-            if (LOG.isDebugEnabled()) {
-                LOG.debug("Swallowing " + e.getMessage());
-            }
+
+        if (current.isObject()) {
+            return Optional.of(current.toString());
         }
-        return errorMap;
+
+        return Optional.of(current.asText());
     }
+
 }
