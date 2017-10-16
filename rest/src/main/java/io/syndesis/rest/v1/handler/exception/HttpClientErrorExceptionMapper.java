@@ -15,6 +15,8 @@
  */
 package io.syndesis.rest.v1.handler.exception;
 
+import java.nio.charset.Charset;
+
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.ext.ExceptionMapper;
@@ -32,7 +34,7 @@ public class HttpClientErrorExceptionMapper implements ExceptionMapper<HttpClien
         RestError error = new RestError(
                 exception.getMessage(),
                 exception.getMessage(),
-                ErrorMap.from(new String(exception.getResponseBodyAsByteArray())).getError(),
+                ErrorMap.from(new String(exception.getResponseBodyAsByteArray(), Charset.forName("UTF-8"))).getError(),
                 exception.getStatusCode().value());
         return Response.status(exception.getStatusCode().value()).type(MediaType.APPLICATION_JSON_TYPE).entity(error).build();
     }

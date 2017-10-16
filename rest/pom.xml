@@ -220,6 +220,7 @@
           <ignoredUsedUndeclaredDependencies>
             <!-- if declared complains about being unused -->
             <ignoredUnusedDeclaredDependency>com.google.code.findbugs:findbugs-annotations</ignoredUnusedDeclaredDependency>
+            <ignoredUnusedDeclaredDependency>org.springframework:spring-web</ignoredUnusedDeclaredDependency>
           </ignoredUsedUndeclaredDependencies>
         </configuration>
       </plugin>

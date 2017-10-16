@@ -54,35 +54,14 @@ public class ErrorMap {
      * @return ErrorMap containing the underlying error message.
      */
     public static ErrorMap from(String rawMsg) {
+        ErrorMap errorMap = new ErrorMap(rawMsg);
         if ('<' == rawMsg.charAt(0)) {
-            try {
-                JAXBContext jaxbContext = JAXBContext.newInstance(ErrorMap.class);
-                Unmarshaller jaxbUnmarshaller = jaxbContext.createUnmarshaller();
-                ErrorMap map = (ErrorMap) jaxbUnmarshaller.unmarshal(new StringReader(rawMsg));
-                if (map.getError()!=null) {
-                    return map;
-                }
-            } catch (JAXBException e) {
-                if (LOG.isDebugEnabled()) {
-                    LOG.debug("Swallowing " + e.getMessage());
-                }
-            }
+            errorMap = parseXML(rawMsg);
         }
         if ('{' == rawMsg.charAt(0)) {
-            try {
-                ObjectMapper mapper = new ObjectMapper();
-                JsonNode jsonNode = mapper.readTree(rawMsg);
-                JsonNode errors = jsonNode.get("errors");
-                if (errors.isArray() && errors.iterator().hasNext()) {
-                    return new ErrorMap(errors.iterator().next().get("message").asText());
-                }
-            } catch (IOException e) {
-                if (LOG.isDebugEnabled()) {
-                    LOG.debug("Swallowing " + e.getMessage());
-                }
-            }
+            errorMap = parseJSON(rawMsg);
         }
-        return new ErrorMap(rawMsg);
+        return errorMap;
     }
 
     public String getError() {
@@ -96,6 +75,48 @@ public class ErrorMap {
     }
     public void setRequest(String request) {
         this.request = request;
+    }
+    /** 
+     * Tries to parse the rawMsg assuming it is JSON formatted.
+     * defaults to the rawMsg if parsing fails.
+     * @param rawMsg
+     * @return ErrorMap
+     */
+    private static ErrorMap parseJSON(String rawMsg) {
+        ErrorMap errorMap = new ErrorMap();
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            JsonNode jsonNode = mapper.readTree(rawMsg);
+            JsonNode errors = jsonNode.get("errors");
+            if (errors.isArray() && errors.iterator().hasNext()) {
+                errorMap.setError(errors.iterator().next().get("message").asText());
+            }
+        } catch (IOException e) {
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("Swallowing " + e.getMessage());
+            }
+        }
+        return errorMap;
+    }
+    /** 
+     * Tries to parse the rawMsg assuming it is XML formatted.
+     * defaults to the rawMsg if parsing fails.
+     * @param rawMsg
+     * @return ErrorMap
+     */
+    private static ErrorMap parseXML(String rawMsg) {
+        ErrorMap errorMap = new ErrorMap();
+        try {
+            JAXBContext jaxbContext = JAXBContext.newInstance(ErrorMap.class);
+            Unmarshaller jaxbUnmarshaller = jaxbContext.createUnmarshaller();
+            errorMap = (ErrorMap) jaxbUnmarshaller.unmarshal(new StringReader(rawMsg));
+            
+        } catch (JAXBException e) {
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("Swallowing " + e.getMessage());
+            }
+        }
+        return errorMap;
     }
 }
 
