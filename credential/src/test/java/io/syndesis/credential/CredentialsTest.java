@@ -20,6 +20,7 @@ import java.util.Optional;
 
 import io.syndesis.model.connection.Connection;
 
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -37,7 +38,9 @@ import org.springframework.social.oauth1.OAuthToken;
 import org.springframework.social.oauth2.AccessGrant;
 import org.springframework.social.oauth2.OAuth2Operations;
 import org.springframework.social.oauth2.OAuth2Parameters;
+import org.springframework.social.twitter.connect.TwitterConnectionFactory;
 import org.springframework.util.MultiValueMap;
+import org.springframework.web.client.HttpClientErrorException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.entry;
@@ -263,5 +266,30 @@ public class CredentialsTest {
 
         assertThat(finalFlowState)
             .isEqualTo(new OAuth2CredentialFlowState.Builder().createFrom(flowState).accessGrant(accessGrant).build());
+    }
+    
+    @Test()
+    public void checkTwitterOAuthException() {
+        String consumerKey="NMqaca1bzXsOcZhP2XlwA";
+        String consumerSecret="VxNQiRLwwKVD0K9mmfxlTTbVdgRpriORypnUbHhxeQw";
+        final OAuth1ConnectionFactory<?> oauth1 = new TwitterConnectionFactory(consumerKey, consumerSecret);
+        
+        String accessToken="26693234-W0YjxL9cMJrC0VZZ4xdgFMymxIQ10LeL1K8YlbBY";
+        String accessTokenSecret="BZD51BgzbOdFstWZYsqB5p5dbuuDV12vrOdatzhY4E";
+        properties.setAppId(accessToken);
+        properties.setAppSecret(accessTokenSecret);
+        
+        final Applicator<OAuthToken> applicator = new OAuth1Applicator(properties);
+        when(locator.providerWithId("providerId"))
+            .thenReturn(new OAuth1CredentialProvider<>("providerId", oauth1, applicator));
+        try {
+            @SuppressWarnings("unused")
+            final AcquisitionFlow acquisition = credentials.acquire("providerId", URI.create("https://syndesis.io/api/v1/"),
+                URI.create("https://syndesis.io/ui#state"));
+            Assert.fail();
+        } catch (HttpClientErrorException exception) {
+            //The HttpClientErrorExceptionMapper will pull out the message from here.
+            Assert.assertTrue(exception.getResponseBodyAsString().contains("<error>"));
+        }
     }
 }
