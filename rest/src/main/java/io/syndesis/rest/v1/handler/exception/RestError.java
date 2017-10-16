@@ -33,7 +33,7 @@ public class RestError {
 
     @JsonProperty("userMsg")
     /* default */ String userMsg;
-    
+
     @JsonProperty("userMsgDetail")
     /* default */ String userMsgDetail;
 

@@ -34,22 +34,20 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 public class ErrorMap {
 
     private static final Logger LOG = LoggerFactory.getLogger(ErrorMap.class);
-            
     private String error;
     private String request;
-
 
     public ErrorMap() {
         super();
     }
-    
+
     public ErrorMap(String error) {
         super();
         this.error = error;
     }
     /**
      * Performs best effort to parse the rawMsg. If all parsers fail it returns the raw message.
-     * 
+     *
      * @param rawMsg
      * @return ErrorMap containing the underlying error message.
      */
@@ -76,7 +74,7 @@ public class ErrorMap {
     public void setRequest(String request) {
         this.request = request;
     }
-    /** 
+    /**
      * Tries to parse the rawMsg assuming it is JSON formatted.
      * defaults to the rawMsg if parsing fails.
      * @param rawMsg
@@ -98,7 +96,7 @@ public class ErrorMap {
         }
         return errorMap;
     }
-    /** 
+    /**
      * Tries to parse the rawMsg assuming it is XML formatted.
      * defaults to the rawMsg if parsing fails.
      * @param rawMsg
@@ -110,7 +108,6 @@ public class ErrorMap {
             JAXBContext jaxbContext = JAXBContext.newInstance(ErrorMap.class);
             Unmarshaller jaxbUnmarshaller = jaxbContext.createUnmarshaller();
             errorMap = (ErrorMap) jaxbUnmarshaller.unmarshal(new StringReader(rawMsg));
-            
         } catch (JAXBException e) {
             if (LOG.isDebugEnabled()) {
                 LOG.debug("Swallowing " + e.getMessage());
@@ -119,4 +116,3 @@ public class ErrorMap {
         return errorMap;
     }
 }
-
